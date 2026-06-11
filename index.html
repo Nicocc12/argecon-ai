@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ArgEcon AI — Monitor Económico</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --negro:    #0a0a0a;
+      --gris-1:   #111111;
+      --gris-2:   #1a1a1a;
+      --gris-3:   #2a2a2a;
+      --borde:    #2e2e2e;
+      --texto:    #e8e8e8;
+      --muted:    #666666;
+      --celeste:  #00c8ff;
+      --verde:    #00e5a0;
+      --rojo:     #ff4560;
+      --amarillo: #ffd600;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--negro);
+      color: var(--texto);
+      font-family: 'IBM Plex Sans', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── GRID DE FONDO ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,200,255,.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,200,255,.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── HEADER ── */
+    header {
+      position: relative;
+      z-index: 1;
+      border-bottom: 1px solid var(--borde);
+      padding: 28px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logo {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+    }
+
+    .logo h1 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 2.4rem;
+      letter-spacing: 3px;
+      color: var(--celeste);
+      line-height: 1;
+    }
+
+    .logo span {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: .7rem;
+      color: var(--muted);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    #hora {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: .8rem;
+      color: var(--muted);
+    }
+
+    .dot-live {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--verde);
+      box-shadow: 0 0 8px var(--verde);
+      animation: pulso 2s ease-in-out infinite;
+    }
+
+    @keyframes pulso {
+      0%,100% { opacity: 1; transform: scale(1); }
+      50%      { opacity: .4; transform: scale(.7); }
+    }
+
+    /* ── LAYOUT PRINCIPAL ── */
+    main {
+      position: relative;
+      z-index: 1;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 40px 80px;
+    }
+
+    /* ── BOTÓN ANALIZAR ── */
+    .hero {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+
+    .hero p {
+      color: var(--muted);
+      font-size: .9rem;
+      margin-bottom: 24px;
+      letter-spacing: .5px;
+    }
+
+    #btn-analizar {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.3rem;
+      letter-spacing: 3px;
+      background: transparent;
+      border: 1px solid var(--celeste);
+      color: var(--celeste);
+      padding: 14px 48px;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: color .3s, box-shadow .3s;
+    }
+
+    #btn-analizar::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: var(--celeste);
+      transform: translateX(-100%);
+      transition: transform .3s ease;
+      z-index: -1;
+    }
+
+    #btn-analizar:hover { color: var(--negro); box-shadow: 0 0 24px rgba(0,200,255,.3); }
+    #btn-analizar:hover::before { transform: translateX(0); }
+    #btn-analizar:disabled { opacity: .4; cursor: not-allowed; }
+
+    /* ── ESTADO DE CARGA ── */
+    #estado {
+      text-align: center;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: .8rem;
+      color: var(--celeste);
+      min-height: 24px;
+      margin-bottom: 32px;
+      letter-spacing: 1px;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 10px; height: 10px;
+      border: 2px solid var(--celeste);
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin .6s linear infinite;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── GRID DE TARJETAS ── */
+    .grid-datos {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+
+    @media (max-width: 900px) { .grid-datos { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 560px) { .grid-datos { grid-template-columns: 1fr; } }
+
+    .tarjeta {
+      background: var(--gris-1);
+      border: 1px solid var(--borde);
+      padding: 20px 22px;
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity .4s ease, transform .4s ease, border-color .3s;
+    }
+
+    .tarjeta.visible { opacity: 1; transform: translateY(0); }
+    .tarjeta:hover { border-color: var(--celeste); }
+
+    .tarjeta-label {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: .65rem;
+      letter-spacing: 2px;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .tarjeta-valor {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 2rem;
+      letter-spacing: 1px;
+      line-height: 1;
+      color: var(--texto);
+    }
+
+    .tarjeta-sub {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: .7rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .badge {
+      display: inline-block;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: .6rem;
+      letter-spacing: 1px;
+      padding: 2px 7px;
+      margin-top: 6px;
+      text-transform: uppercase;
+    }
+
+    .badge-rojo    { background: rgba(255,69,96,.15);  color: var(--rojo);    border: 1px solid rgba(255,69,96,.3); }
+    .badge-verde   { background: rgba(0,229,160,.12);  color: var(--verde);   border: 1px solid rgba(0,229,160,.3); }
+    .badge-amarillo{ background: rgba(255,214,0,.12);  color: var(--amarillo);border: 1px solid rgba(255,214,0,.3); }
+    .badge-celeste { background: rgba(0,200,255,.1);   color: var(--celeste); border: 1px solid rgba(0,200,255,.25); }
+
+    /* ── SECCIÓN DE ANÁLISIS IA ── */
+    #seccion-analisis {
+      border: 1px solid var(--borde);
+      background: var(--gris-1);
+      padding: 28px 32px;
+      opacity: 0;
+      transform: translateY(16px);
+      transition: opacity .5s ease .2s, transform .5s ease .2s;
+      display: none;
+    }
+
+    #seccion-analisis.visible {
+      display: block;
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .analisis-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--borde);
+    }
+
+    .analisis-header h2 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.4rem;
+      letter-spacing: 2px;
+      color: var(--celeste);
+    }
+
+    .ia-badge {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: .6rem;
+      letter-spacing: 1px;
+      padding: 3px 8px;
+      background: rgba(0,200,255,.08);
+      border: 1px solid rgba(0,200,255,.2);
+      color: var(--celeste);
+    }
+
+    #texto-analisis {
+      font-size: .92rem;
+      line-height: 1.75;
+      color: #c8c8c8;
+      white-space: pre-wrap;
+      font-family: 'IBM Plex Sans', sans-serif;
+    }
+
+    /* ── SEPARADOR ── */
+    .separador {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: .65rem;
+      letter-spacing: 3px;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .separador::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--borde);
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      padding: 20px;
+      border-top: 1px solid var(--borde);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: .65rem;
+      color: var(--muted);
+      letter-spacing: 1px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <h1>ArgEcon AI</h1>
+    <span>Monitor económico en tiempo real</span>
+  </div>
+  <div class="header-right">
+    <span id="hora"></span>
+    <div class="dot-live"></div>
+  </div>
+</header>
+
+<main>
+
+  <div class="hero">
+    <p>Datos en tiempo real · BCRA · Dólar · Inflación · Análisis con LLaMA 3</p>
+    <button id="btn-analizar" onclick="analizar()">ANALIZAR ECONOMÍA</button>
+  </div>
+
+  <div id="estado"></div>
+
+  <!-- TARJETAS DE DATOS -->
+  <div class="separador" id="sep-datos" style="display:none">Datos del mercado</div>
+  <div class="grid-datos" id="grid-datos"></div>
+
+  <!-- ANÁLISIS IA -->
+  <div class="separador" id="sep-ia" style="display:none">Análisis de inteligencia artificial</div>
+  <div id="seccion-analisis">
+    <div class="analisis-header">
+      <h2>Diagnóstico IA</h2>
+      <span class="ia-badge">LLaMA 3 · Groq</span>
+    </div>
+    <div id="texto-analisis"></div>
+  </div>
+
+</main>
+
+<footer>ARGECON AI &nbsp;·&nbsp; DATOS: BCRA · DOLARAPI.COM &nbsp;·&nbsp; MODELO: LLAMA-3.3-70B</footer>
+
+<script>
+  // ── RELOJ EN TIEMPO REAL ──────────────────────────────────────────────────
+  function actualizarHora() {
+    const ahora = new Date();
+    document.getElementById('hora').textContent =
+      ahora.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+  setInterval(actualizarHora, 1000);
+  actualizarHora();
+
+  // ── FUNCIÓN PRINCIPAL ─────────────────────────────────────────────────────
+  async function analizar() {
+    const btn    = document.getElementById('btn-analizar');
+    const estado = document.getElementById('estado');
+
+    btn.disabled = true;
+    estado.innerHTML = '<span class="spinner"></span>CONSULTANDO APIs DE DATOS...';
+
+    try {
+      // Paso 1: traer datos económicos
+      const resDatos = await fetch('/api/datos');
+      if (!resDatos.ok) throw new Error('Error al obtener datos');
+      const datos = await resDatos.json();
+
+      // Renderizar tarjetas
+      renderizarTarjetas(datos);
+      document.getElementById('sep-datos').style.display = 'flex';
+
+      // Paso 2: pedir análisis a la IA
+      estado.innerHTML = '<span class="spinner"></span>GENERANDO ANÁLISIS CON LLAMA 3...';
+      const resAnalisis = await fetch('/api/analisis');
+      if (!resAnalisis.ok) throw new Error('Error al obtener análisis');
+      const analisisData = await resAnalisis.json();
+
+      // Renderizar análisis
+      renderizarAnalisis(analisisData.analisis);
+      document.getElementById('sep-ia').style.display = 'flex';
+
+      estado.innerHTML = '✓ &nbsp;ACTUALIZADO · ' + new Date().toLocaleTimeString('es-AR');
+
+    } catch (err) {
+      estado.innerHTML = '⚠ ERROR: ' + err.message;
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  // ── RENDERIZAR TARJETAS ───────────────────────────────────────────────────
+  function renderizarTarjetas(datos) {
+    const grid = document.getElementById('grid-datos');
+    grid.innerHTML = '';
+    const tarjetas = [];
+
+    // Dólar
+    const dolar = datos.dolar || {};
+    for (const [nombre, vals] of Object.entries(dolar)) {
+      const spread = vals.spread || 0;
+      const badgeClass = nombre === 'Blue'     ? 'badge-rojo'
+                       : nombre === 'Oficial'  ? 'badge-verde'
+                       : nombre === 'Tarjeta'  ? 'badge-amarillo'
+                       : 'badge-celeste';
+      tarjetas.push({
+        label: `DÓLAR ${nombre.toUpperCase()}`,
+        valor: `$${Number(vals.venta).toLocaleString('es-AR')}`,
+        sub:   `Compra $${Number(vals.compra).toLocaleString('es-AR')} · Spread $${spread}`,
+        badge: nombre, badgeClass,
+      });
+    }
+
+    // BCRA
+    const bcra = datos.bcra || {};
+    for (const [nombre, vals] of Object.entries(bcra)) {
+      tarjetas.push({
+        label: nombre.toUpperCase(),
+        valor: Number(vals.valor).toLocaleString('es-AR', {maximumFractionDigits: 0}),
+        sub:   `Al ${vals.fecha}`,
+        badge: 'BCRA', badgeClass: 'badge-celeste',
+      });
+    }
+
+    // Inflación
+    const inf = datos.inflacion || {};
+    if (inf.ultimo_mes) {
+      const tendColor = inf.tendencia === 'acelerando'    ? 'badge-rojo'
+                      : inf.tendencia === 'desacelerando' ? 'badge-verde'
+                      : 'badge-amarillo';
+      tarjetas.push({
+        label: 'INFLACIÓN MENSUAL',
+        valor: `${inf.ultimo_mes.variacion_pct}%`,
+        sub:   `Acumulado anual estimado: ${inf.acumulado_anual_estimado}%`,
+        badge: inf.tendencia?.toUpperCase() || '', badgeClass: tendColor,
+      });
+      tarjetas.push({
+        label: 'PROMEDIO MENSUAL 12M',
+        valor: `${inf.promedio_mensual}%`,
+        sub:   `Basado en los últimos ${(inf.historial||[]).length} meses`,
+        badge: 'IPC', badgeClass: 'badge-celeste',
+      });
+    }
+
+    // Animar tarjetas con delay escalonado
+    tarjetas.forEach((t, i) => {
+      const div = document.createElement('div');
+      div.className = 'tarjeta';
+      div.innerHTML = `
+        <div class="tarjeta-label">${t.label}</div>
+        <div class="tarjeta-valor">${t.valor}</div>
+        <div class="tarjeta-sub">${t.sub}</div>
+        <span class="badge ${t.badgeClass}">${t.badge}</span>
+      `;
+      grid.appendChild(div);
+      // Delay escalonado: cada tarjeta aparece 60ms después de la anterior
+      setTimeout(() => div.classList.add('visible'), 60 * i);
+    });
+  }
+
+  // ── RENDERIZAR ANÁLISIS ───────────────────────────────────────────────────
+  function renderizarAnalisis(texto) {
+    const seccion = document.getElementById('seccion-analisis');
+    const contenedor = document.getElementById('texto-analisis');
+
+    seccion.style.display = 'block';
+    contenedor.textContent = '';
+
+    // Efecto typewriter: aparece carácter por carácter
+    let i = 0;
+    function escribir() {
+      if (i < texto.length) {
+        contenedor.textContent += texto[i++];
+        // Velocidad variable: más lento en puntos y saltos de línea
+        const delay = ['.', '\n', '!', '?'].includes(texto[i - 1]) ? 40 : 8;
+        setTimeout(escribir, delay);
+      }
+    }
+
+    // Pequeño delay antes de mostrar la sección
+    setTimeout(() => {
+      seccion.classList.add('visible');
+      setTimeout(escribir, 300);
+    }, 100);
+  }
+</script>
+
+</body>
+</html>
